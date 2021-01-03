@@ -10,18 +10,81 @@ import (
 	"path/filepath"
 )
 
+type NameValueMapping struct {
+	Name	string	`json:"name"`
+	Value	int		`json:"value"`
+}
+
 type Player struct {
 	ID		string	`json:"id"`
 	Name	string	`json:"name"`
 }
 
+var Players = map[string]*Player{}
+
+const (
+	LOBBY = iota
+	PLAYING
+	FINISHED
+)
+var GameStateMappings = []NameValueMapping{
+	NameValueMapping {
+		Name: "lobby",
+		Value: LOBBY,
+	},
+	NameValueMapping {
+		Name: "playing",
+		Value: PLAYING,
+	},
+	NameValueMapping {
+		Name: "finished",
+		Value: FINISHED,
+	},
+}
+
+const (
+	NONE = iota
+	RETAILER
+	WHOLESALER
+	DISTRIBUTER
+	MANUFACTURER
+)
+var GameRoleMappings = []NameValueMapping{
+	NameValueMapping {
+		Name: "None",
+		Value: NONE,
+	},
+	NameValueMapping {
+		Name: "retailer",
+		Value: RETAILER,
+	},
+	NameValueMapping {
+		Name: "wholesaler",
+		Value: WHOLESALER,
+	},
+	NameValueMapping {
+		Name: "distributer",
+		Value: DISTRIBUTER,
+	},
+	NameValueMapping {
+		Name: "manufacturer",
+		Value: MANUFACTURER,
+	},
+}
+
+type PlayerState struct {
+	PlayerID	string		`json:"playerId"`
+	Value		int			`json:"value"`
+	Role		int 		`json:"role"`
+}
+
 type Game struct {
-	ID    	string		`json:"id"`
-	Players []string	`json:"players"`
+	ID    			string				`json:"id"`
+	State			int					`json:"state"`
+	PlayerState 	[]*PlayerState		`json:"playerState"`
 }
 
 var Games = map[string]*Game{}
-var Players = map[string]*Player{}
 
 func ExistingGame(id string) bool {
 	_, found := Games[id]
@@ -33,7 +96,8 @@ func FindOrCreateGame(id string) *Game {
 	if (!found) {
 		newGame := &Game{
 			ID: id,
-			Players: []string{},
+			State: LOBBY,
+			PlayerState: []*PlayerState{},
 		}
 		Games[id] = newGame
 		return newGame
@@ -61,24 +125,50 @@ func FindOrCreatePlayer(id string, name string) *Player {
 }
 
 func (game *Game) AddPlayer(id string) bool {
-	for _, value := range game.Players {
-		if value == id {
+	for _, value := range game.PlayerState {
+		if value.PlayerID == id {
 			return false
 		}
 	}
-	game.Players = append(game.Players, id)
+	newPlayerState := &PlayerState{
+		PlayerID: id,
+		Value: 0,
+	}
+	game.PlayerState = append(game.PlayerState, newPlayerState)
 	return true
 }
 
 func (game *Game) RemovePlayer(id string) bool {
-	for index, value := range game.Players {
-		if value == id {
-			game.Players = append(game.Players[:index], game.Players[index+1:]...)
+	for index, value := range game.PlayerState {
+		if value.PlayerID == id {
+			game.PlayerState = append(game.PlayerState[:index], game.PlayerState[index+1:]...)
 			return true
 		}
 	}
 	return false
 }
+
+func (game *Game) Start() bool {
+	// TODO
+	return false
+}
+
+func (game *Game) TryStep() bool {
+	// TODO
+	return false
+}
+
+var nameValueType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "NameValue",
+	Fields: graphql.Fields{
+		"name": &graphql.Field{
+			Type: graphql.String,
+		},
+		"value": &graphql.Field{
+			Type: graphql.Int,
+		},
+	},
+})
 
 var playerType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "Player",
@@ -88,6 +178,25 @@ var playerType = graphql.NewObject(graphql.ObjectConfig{
 		},
 		"name": &graphql.Field{
 			Type: graphql.String,
+		},
+	},
+})
+
+var playerStateType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "PlayerState",
+	Fields: graphql.Fields{
+		"playerId": &graphql.Field{
+			Type: graphql.String,
+		},
+		"value": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"role": &graphql.Field{
+			Type: nameValueType,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				playerState := p.Source.(*PlayerState)
+				return GameRoleMappings[playerState.Role], nil
+			},
 		},
 	},
 })
@@ -104,14 +213,24 @@ var gameType = graphql.NewObject(
 				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 					game := p.Source.(*Game)
 					players := []*Player{}
-					for _, playerId := range game.Players {
-						player := FindPlayer(playerId)
+					for _, playerState := range game.PlayerState {
+						player := FindPlayer(playerState.PlayerID)
 						if player != nil {
 							players = append(players, player)
 						}
 					}
 					return players, nil
 				},
+			},
+			"state": &graphql.Field{
+				Type: nameValueType,
+				Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+					game := p.Source.(*Game)
+					return GameStateMappings[game.State], nil
+				},
+			},
+			"playerState": &graphql.Field{
+				Type: graphql.NewList(playerStateType),
 			},
 		},
 	},
@@ -154,6 +273,18 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 				playerId, _ := p.Args["playerId"].(string)
 				return FindPlayer(playerId), nil
+			},
+		},
+		"gameStates": &graphql.Field{
+			Type: graphql.NewList(nameValueType),
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				return GameStateMappings, nil
+			},
+		},
+		"gameRoles": &graphql.Field{
+			Type: graphql.NewList(nameValueType),
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				return GameRoleMappings, nil
 			},
 		},
 	},
@@ -216,6 +347,19 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				playerId, _ := p.Args["playerId"].(string)
 				removed := game.RemovePlayer(playerId)
 				return removed, nil
+			},
+		},
+		"startGame": &graphql.Field{
+			Type: graphql.Boolean,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				gameId, _ := p.Args["gameId"].(string)
+				game := FindOrCreateGame(gameId)
+				return game.Start(), nil
 			},
 		},
 	},

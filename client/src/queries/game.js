@@ -15,6 +15,9 @@ export const GameQueries = {
                     id
                     name
                 }
+                state {
+                    name
+                }
             }
         }
     `,
