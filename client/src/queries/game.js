@@ -18,6 +18,24 @@ export const GameQueries = {
                 state {
                     name
                 }
+                playerState {
+                    player {
+                        id
+                        name
+                    }
+                    role {
+                        name
+                        value
+                    }
+                }
+            }
+        }
+    `,
+    getRoles: gql`
+        query Roles {
+            gameRoles {
+                name
+                value
             }
         }
     `,
@@ -29,6 +47,16 @@ export const GameQueries = {
     leaveGame: gql`
         mutation LeaveGame($gameId: String!, $playerId: String!) {
             removePlayer(gameId: $gameId, playerId: $playerId)
+        }
+    `,
+    startGame: gql`
+        mutation StartGame($gameId: String!) {
+            startGame(gameId: $gameId)
+        }
+    `,
+    setRole: gql`
+        mutation ChangePlayerRole($gameId: String!, $playerId: String!, $role: Int!) {
+            changePlayerRole(gameId: $gameId, playerId: $playerId, role: $role)
         }
     `,
 };

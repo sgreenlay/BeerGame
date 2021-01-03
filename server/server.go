@@ -51,7 +51,7 @@ const (
 )
 var GameRoleMappings = []NameValueMapping{
 	NameValueMapping {
-		Name: "None",
+		Name: "none",
 		Value: NONE,
 	},
 	NameValueMapping {
@@ -86,7 +86,12 @@ type Game struct {
 
 var Games = map[string]*Game{}
 
-func ExistingGame(id string) bool {
+func FindGame(id string) *Game {
+	game, _ := Games[id]
+	return game
+}
+
+func ExistsGame(id string) bool {
 	_, found := Games[id]
 	return found
 }
@@ -148,6 +153,15 @@ func (game *Game) RemovePlayer(id string) bool {
 	return false
 }
 
+func (game *Game) FindPlayerState(id string) *PlayerState {
+	for _, value := range game.PlayerState {
+		if value.PlayerID == id {
+			return value
+		}
+	}
+	return nil
+}
+
 func (game *Game) Start() bool {
 	// TODO
 	return false
@@ -185,8 +199,12 @@ var playerType = graphql.NewObject(graphql.ObjectConfig{
 var playerStateType = graphql.NewObject(graphql.ObjectConfig{
 	Name: "PlayerState",
 	Fields: graphql.Fields{
-		"playerId": &graphql.Field{
-			Type: graphql.String,
+		"player": &graphql.Field{
+			Type: playerType,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				playerState := p.Source.(*PlayerState)
+				return FindPlayer(playerState.PlayerID), nil
+			},
 		},
 		"value": &graphql.Field{
 			Type: graphql.Int,
@@ -248,7 +266,7 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 			},
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 				id, _ := p.Args["gameId"].(string)
-				return ExistingGame(id), nil
+				return ExistsGame(id), nil
 			},
 		},
 		"game": &graphql.Field{
@@ -347,6 +365,38 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				playerId, _ := p.Args["playerId"].(string)
 				removed := game.RemovePlayer(playerId)
 				return removed, nil
+			},
+		},
+		"changePlayerRole": &graphql.Field{
+			Type: graphql.Boolean,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"playerId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"role": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Int),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				gameId, _ := p.Args["gameId"].(string)
+				game := FindGame(gameId)
+				if game == nil {
+					return false, nil
+				}
+
+				playerId, _ := p.Args["playerId"].(string)
+				playerState := game.FindPlayerState(playerId)
+				if (playerState == nil) {
+					return false, nil
+				}
+
+				role, _ := p.Args["role"].(int)
+				playerState.Role = role
+
+				return true, nil
 			},
 		},
 		"startGame": &graphql.Field{

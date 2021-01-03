@@ -5,7 +5,32 @@ import { useQuery, useMutation } from '@apollo/react-hooks';
 import { GameQueries } from '../../queries/game'
 
 function Lobby() {
+    const { loading, error, data } = useQuery(GameQueries.getRoles);
+
+    if (loading) return 'Loading...';
+    if (error) return "Error!";
+
     const [leaveGame] = useMutation(GameQueries.leaveGame, {
+        variables: { 
+            gameId: this.props.game.id
+        },
+        refetchQueries: [{
+            query: GameQueries.getState,
+            variables: { gameId: this.props.game.id }
+        }],
+        awaitRefetchQueries: true,
+    });
+    const [startGame] = useMutation(GameQueries.startGame, {
+        variables: { 
+            gameId: this.props.game.id
+        },
+        refetchQueries: [{
+            query: GameQueries.getState,
+            variables: { gameId: this.props.game.id }
+        }],
+        awaitRefetchQueries: true,
+    });
+    const [changeRole] = useMutation(GameQueries.setRole, {
         variables: { 
             gameId: this.props.game.id
         },
@@ -18,21 +43,41 @@ function Lobby() {
 
     return (
         <div>
-            <h2>Players</h2>
             <ul>
-                {this.props.game.players.map(player => (
+                {this.props.game.playerState.map(state => (
                     <li>
-                        {player.name} [<a href="#" onClick={e => {
-                            e.preventDefault();
-                            leaveGame({ variables: { playerId: player.id }});
-                        }}>{player.id == this.props.user.id ? (
-                            'Leave'
-                        ) : (
-                            'Kick'
-                        )}</a>]
+                        <span>{state.player.name}</span>
+                        &nbsp;
+                        <span>
+                            {state.player.id == this.props.user.id ? (
+                                <select value={state.role.value} onChange={e => {
+                                    e.preventDefault();
+                                    changeRole({ variables: { playerId: state.player.id, role: e.target.value }});
+                                }}>{data.gameRoles.map(role => (
+                                    <option value={role.value}>{role.name}</option>
+                                ))}</select>
+                            ) : (
+                                <span>{state.role.name}</span>
+                            )}
+                        </span>
+                        &nbsp;
+                        <span>
+                            [<a href="#" onClick={e => {
+                                e.preventDefault();
+                                leaveGame({ variables: { playerId: state.player.id }});
+                            }}>{state.player.id == this.props.user.id ? (
+                                'Leave'
+                            ) : (
+                                'Kick'
+                            )}</a>]
+                        </span>
                     </li>
                 ))}
             </ul>
+            <a href="#" onClick={e => {
+                e.preventDefault();
+                startGame();
+            }}>Start</a>
         </div>
     );
 }
