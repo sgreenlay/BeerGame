@@ -1,6 +1,5 @@
 import { useState } from 'preact/hooks';
 
-import gql from 'graphql-tag';
 import { useQuery, useMutation } from '@apollo/react-hooks';
 
 import { existsCookie, setCookie, getCookie } from '../../utils/cookie';
@@ -9,7 +8,9 @@ import { generateUUID } from '../../utils/uuid';
 import { PlayerQueries } from '../../queries/player'
 
 function Preferences() {
-    const [state, setState] = useState({ name: '' });
+    const [state, setState] = useState({ 
+        name: this.props.user ? this.props.user.name : '' 
+    });
     const [createPlayer] = useMutation(PlayerQueries.createPlayer);
 
     return (

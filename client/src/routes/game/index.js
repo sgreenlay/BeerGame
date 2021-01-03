@@ -3,6 +3,7 @@ import { useEffect } from 'preact/hooks';
 import { useQuery, useMutation } from '@apollo/react-hooks';
 
 import Lobby from "./lobby"
+import Play from "./play"
 
 import { GameQueries } from '../../queries/game'
 
@@ -32,17 +33,22 @@ function Game({ id }) {
 
     if (data.game.state.name == "lobby") {
         return (
-            <div>
-                <h1>'{this.props.id}'</h1>
-                <Lobby user={this.props.user} game={data.game} />
-            </div>
+            <Lobby user={this.props.user} game={data.game} />
         );
+    } else if (data.game.state.name == "playing") {
+        return (
+            <Play user={this.props.user} game={data.game} />
+        );
+    } else if (data.game.state.name == "finished") {
+        <div>
+            <h1>'{this.props.id}'</h1>
+            TODO: Finished
+        </div>
     }
-
     return (
         <div>
             <h1>'{this.props.id}'</h1>
-            TODO
+            ERROR: unknown state '{data.game.state.name}''
         </div>
     )
 }

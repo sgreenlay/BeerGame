@@ -1,5 +1,3 @@
-import { useEffect } from 'preact/hooks';
-
 import { useQuery, useMutation } from '@apollo/react-hooks';
 
 import { GameQueries } from '../../queries/game'
@@ -43,6 +41,7 @@ function Lobby() {
 
     return (
         <div>
+        <h1>'{this.props.game.id}'</h1>
             <ul>
                 {this.props.game.playerState.map(state => (
                     <li>

@@ -59,4 +59,9 @@ export const GameQueries = {
             changePlayerRole(gameId: $gameId, playerId: $playerId, role: $role)
         }
     `,
+    submitValue: gql`
+        mutation ChangePlayerRole($gameId: String!, $playerId: String!, $value: Int!) {
+            submitValue(gameId: $gameId, playerId: $playerId, value: $value)
+        }
+    `,
 };

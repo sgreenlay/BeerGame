@@ -30,10 +30,11 @@ function AppRoot() {
         showPreferences: !existsCookie("user-id") || (data.player == null)
     });
 
+    const player = data ? data.player : null
     if (userPreferences.showPreferences)
     {
         return (
-            <Perferences setUserPreferences={setUserPreferences} />
+            <Perferences user={player} setUserPreferences={setUserPreferences} />
         )
     }
     return (
@@ -43,8 +44,8 @@ function AppRoot() {
                 setUserPreferences({ showPreferences: true });
             }}>Options</a>
             <Router onChange={e => { this.currentUrl = e.url; }}>
-                <Home path="/" user={data.player} />
-                <Game path="/game/:id" user={data.player} />
+                <Home path="/" user={player} />
+                <Game path="/game/:id" user={player} />
             </Router>
         </div>
     )

@@ -1,23 +1,24 @@
 package main
 
 import (
+	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
 	"github.com/rs/cors"
-	"os"
-	"strings"
-	"net/http"
-	"path/filepath"
 )
 
 type NameValueMapping struct {
-	Name	string	`json:"name"`
-	Value	int		`json:"value"`
+	Name  string `json:"name"`
+	Value int    `json:"value"`
 }
 
 type Player struct {
-	ID		string	`json:"id"`
-	Name	string	`json:"name"`
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 var Players = map[string]*Player{}
@@ -27,17 +28,18 @@ const (
 	PLAYING
 	FINISHED
 )
+
 var GameStateMappings = []NameValueMapping{
-	NameValueMapping {
-		Name: "lobby",
+	NameValueMapping{
+		Name:  "lobby",
 		Value: LOBBY,
 	},
-	NameValueMapping {
-		Name: "playing",
+	NameValueMapping{
+		Name:  "playing",
 		Value: PLAYING,
 	},
-	NameValueMapping {
-		Name: "finished",
+	NameValueMapping{
+		Name:  "finished",
 		Value: FINISHED,
 	},
 }
@@ -49,39 +51,40 @@ const (
 	DISTRIBUTER
 	MANUFACTURER
 )
+
 var GameRoleMappings = []NameValueMapping{
-	NameValueMapping {
-		Name: "none",
+	NameValueMapping{
+		Name:  "none",
 		Value: NONE,
 	},
-	NameValueMapping {
-		Name: "retailer",
+	NameValueMapping{
+		Name:  "retailer",
 		Value: RETAILER,
 	},
-	NameValueMapping {
-		Name: "wholesaler",
+	NameValueMapping{
+		Name:  "wholesaler",
 		Value: WHOLESALER,
 	},
-	NameValueMapping {
-		Name: "distributer",
+	NameValueMapping{
+		Name:  "distributer",
 		Value: DISTRIBUTER,
 	},
-	NameValueMapping {
-		Name: "manufacturer",
+	NameValueMapping{
+		Name:  "manufacturer",
 		Value: MANUFACTURER,
 	},
 }
 
 type PlayerState struct {
-	PlayerID	string		`json:"playerId"`
-	Value		int			`json:"value"`
-	Role		int 		`json:"role"`
+	PlayerID string `json:"playerId"`
+	Value    int    `json:"value"`
+	Role     int    `json:"role"`
 }
 
 type Game struct {
-	ID    			string				`json:"id"`
-	State			int					`json:"state"`
-	PlayerState 	[]*PlayerState		`json:"playerState"`
+	ID          string         `json:"id"`
+	State       int            `json:"state"`
+	PlayerState []*PlayerState `json:"playerState"`
 }
 
 var Games = map[string]*Game{}
@@ -98,10 +101,10 @@ func ExistsGame(id string) bool {
 
 func FindOrCreateGame(id string) *Game {
 	game, found := Games[id]
-	if (!found) {
+	if !found {
 		newGame := &Game{
-			ID: id,
-			State: LOBBY,
+			ID:          id,
+			State:       LOBBY,
 			PlayerState: []*PlayerState{},
 		}
 		Games[id] = newGame
@@ -117,9 +120,9 @@ func FindPlayer(id string) *Player {
 
 func FindOrCreatePlayer(id string, name string) *Player {
 	player, found := Players[id]
-	if (!found) {
+	if !found {
 		newPlayer := &Player{
-			ID: id,
+			ID:   id,
 			Name: name,
 		}
 		Players[id] = newPlayer
@@ -137,7 +140,7 @@ func (game *Game) AddPlayer(id string) bool {
 	}
 	newPlayerState := &PlayerState{
 		PlayerID: id,
-		Value: 0,
+		Value:    0,
 	}
 	game.PlayerState = append(game.PlayerState, newPlayerState)
 	return true
@@ -163,7 +166,12 @@ func (game *Game) FindPlayerState(id string) *PlayerState {
 }
 
 func (game *Game) Start() bool {
-	// TODO
+	if game.State == LOBBY {
+		// TODO: Validation
+
+		game.State = PLAYING
+		return true
+	}
 	return false
 }
 
@@ -342,7 +350,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				game := FindOrCreateGame(gameId)
 				playerId, _ := p.Args["playerId"].(string)
 				player := FindPlayer(playerId)
-				if (player == nil) {
+				if player == nil {
 					return false, nil
 				}
 				added := game.AddPlayer(playerId)
@@ -389,7 +397,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 
 				playerId, _ := p.Args["playerId"].(string)
 				playerState := game.FindPlayerState(playerId)
-				if (playerState == nil) {
+				if playerState == nil {
 					return false, nil
 				}
 
@@ -412,12 +420,50 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				return game.Start(), nil
 			},
 		},
+		"submitValue": &graphql.Field{
+			Type: graphql.Boolean,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"playerId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"value": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Int),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				gameId, _ := p.Args["gameId"].(string)
+				game := FindGame(gameId)
+				if game == nil {
+					return false, nil
+				}
+
+				playerId, _ := p.Args["playerId"].(string)
+				playerState := game.FindPlayerState(playerId)
+				if playerState == nil {
+					return false, nil
+				}
+
+				value, validValue := p.Args["value"].(int)
+				if !validValue {
+					return false, nil
+				}
+
+				// TODO: Something with the value
+				println(value)
+				game.TryStep()
+
+				return true, nil
+			},
+		},
 	},
 })
 
 type SinglePageAppHandler struct {
 	Directory string
-	IndexFile  string
+	IndexFile string
 }
 
 func (h SinglePageAppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -449,7 +495,7 @@ func main() {
 	mux.Handle("/", appHandler)
 
 	schema, _ := graphql.NewSchema(graphql.SchemaConfig{
-		Query: queryType,
+		Query:    queryType,
 		Mutation: mutationType,
 	})
 
