@@ -1,15 +1,15 @@
 html, body {
-	height: 100%;
-	width: 100%;
-	padding: 0;
-	margin: 0;
-	font-family: 'Helvetica Neue', arial, sans-serif;
+    height: 100%;
+    width: 100%;
+    padding: 0;
+    margin: 0;
+    font-family: 'Helvetica Neue', arial, sans-serif;
 }
 
 * {
-	box-sizing: border-box;
+    box-sizing: border-box;
 }
 
 #app {
-	height: 100%;
+    height: 100%;
 }

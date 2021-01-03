@@ -1,6 +1,6 @@
 # The Beer Game
 
-This is an unauthorized clone of [The Beer Game](https://beergame.masystem.se/) built with [Game Night](https://github.com/sgreenlay/GameNight).
+This is an unauthorized clone of [The Beer Game](https://beergame.masystem.se/).
 
 ## Setup
 
