@@ -7,7 +7,7 @@ import { ApolloProvider } from '@apollo/react-hooks';
 import gql from 'graphql-tag';
 import { useQuery, useMutation } from '@apollo/react-hooks';
 
-import { getCookie } from '../utils/cookie';
+import { existsCookie, getCookie } from '../utils/cookie';
 
 import Home from '../routes/home';
 import Game from '../routes/game';
@@ -18,34 +18,30 @@ import { PlayerQueries } from '../queries/player'
 const client = new ApolloClient();
 
 function AppRoot() {
-    const [user, setUser] = useState({ 
-        id: getCookie("user-id")
-    });
-
     const { loading, error, data } = useQuery(PlayerQueries.getState, {
-        variables: { playerId: user.id },
-        skip: !user.id
+        variables: { playerId: getCookie("user-id") },
+        skip: !existsCookie("user-id")
     });
 
     if (loading) return 'Loading...';
     if (error) return "Error!";
 
     const [userPreferences, setUserPreferences] = useState({ 
-        show: (user.id == "") || (data.player == null)
+        showPreferences: !existsCookie("user-id") || (data.player == null)
     });
 
-    if (userPreferences.show)
+    if (userPreferences.showPreferences)
     {
         return (
-            <Perferences setUser={setUser} setUserPreferences={setUserPreferences} />
+            <Perferences setUserPreferences={setUserPreferences} />
         )
     }
     return (
         <div>
             <a href="#" onClick={e => {
                 e.preventDefault();
-                setUserPreferences({ show: true });
-            }}>Change Name</a>
+                setUserPreferences({ showPreferences: true });
+            }}>Options</a>
             <Router onChange={e => { this.currentUrl = e.url; }}>
                 <Home path="/" user={data.player} />
                 <Game path="/game/:id" user={data.player} />

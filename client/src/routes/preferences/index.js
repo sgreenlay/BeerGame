@@ -34,11 +34,8 @@ function Preferences() {
                     awaitRefetchQueries: true,
                 });
 
-                this.props.setUser({
-                    id: userId
-                });
                 this.props.setUserPreferences({
-                    show: false
+                    showPreferences: false
                 });
             }}>
                 <input type="text" value={state.name} onInput={e => {
