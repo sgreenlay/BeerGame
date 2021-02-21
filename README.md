@@ -1,6 +1,6 @@
 # The Beer Game
 
-This is an unauthorized clone of [The Beer Game](https://beergame.masystem.se/).
+This is an implementation of [The Beer Distribution Game](https://en.wikipedia.org/wiki/Beer_distribution_game).
 
 ## Setup
 
