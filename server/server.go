@@ -97,10 +97,11 @@ type PlayerState struct {
 }
 
 type Game struct {
-	ID          string         `json:"id"`
-	State       int            `json:"state"`
-	PlayerState []*PlayerState `json:"playerState"`
-	Week        int            `json:"week"`
+	ID          string         	`json:"id"`
+	State       int            	`json:"state"`
+	PlayerState []*PlayerState 	`json:"playerState"`
+	Week        int            	`json:"week"`
+	LastWeek    int        		`json:"lastweek"`
 }
 
 var Games = map[string]*Game{}
@@ -123,6 +124,7 @@ func FindOrCreateGame(id string) *Game {
 			State:       LOBBY,
 			PlayerState: []*PlayerState{},
 			Week:        0,
+			LastWeek:	 50,
 		}
 		Games[id] = newGame
 		return newGame
@@ -150,6 +152,9 @@ func FindOrCreatePlayer(id string, name string) *Player {
 }
 
 func (game *Game) AddPlayer(id string) bool {
+	if game.State != LOBBY {
+		return false
+	}
 	for _, value := range game.PlayerState {
 		if value.PlayerID == id {
 			return false
@@ -227,6 +232,10 @@ func (game *Game) Start() bool {
 }
 
 func (game *Game) TryStep() bool {
+	if game.State != PLAYING {
+		return false
+	}
+
 	var p1 *PlayerState = nil
 	var p2 *PlayerState = nil
 	var p3 *PlayerState = nil
@@ -253,8 +262,6 @@ func (game *Game) TryStep() bool {
 	if p1 == nil || p2 == nil || p3 == nil || p4 == nil || len(game.PlayerState) != 4 {
 		return false
 	}
-
-	game.Week = game.Week + 1
 
 	p1.Incoming = rand.Intn(20) // Customers
 	p2.Incoming = p1.Outgoing
@@ -289,6 +296,12 @@ func (game *Game) TryStep() bool {
 		p.StockBackPrev = append(p.StockBackPrev, p.Stock-p.Backlog)
 		p.CostPrev = append(p.CostPrev, p.Costs)
 		p.Outgoing = -1
+	}
+
+	if game.Week >= game.LastWeek - 1 {
+		game.State = FINISHED
+	} else {
+		game.Week = game.Week + 1
 	}
 
 	return false
@@ -613,6 +626,37 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				started := game.Start()
 				Subscriptions.broadcast()
 				return started, nil
+			},
+		},
+		"submitLastWeek": &graphql.Field{
+			Type: graphql.Boolean,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"lastWeek": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.Int),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				gameId, _ := p.Args["gameId"].(string)
+				game := FindGame(gameId)
+				if game == nil {
+					return false, nil
+				}
+
+				if game.State != LOBBY {
+					return false, nil
+				}
+
+				lastWeek, validLastWeek := p.Args["lastWeek"].(int)
+				if !validLastWeek {
+					return false, nil
+				}
+
+				game.LastWeek = lastWeek
+				Subscriptions.broadcast()
+				return true, nil
 			},
 		},
 		"submitOutgoing": &graphql.Field{

@@ -76,6 +76,11 @@ export const GameQueries = {
             changePlayerRole(gameId: $gameId, playerId: $playerId, role: $role)
         }
     `,
+    submitLastWeek: gql`
+        mutation SubmitLastWeek($gameId: String!, $lastWeek: Int!) {
+            submitLastWeek(gameId: $gameId, lastWeek: $lastWeek)
+        }
+    `,
     submitOutgoing: gql`
         mutation SubmitOutgoing($gameId: String!, $playerId: String!, $outgoing: Int!) {
             submitOutgoing(gameId: $gameId, playerId: $playerId, outgoing: $outgoing)
