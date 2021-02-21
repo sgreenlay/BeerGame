@@ -27,6 +27,7 @@ export const GameQueries = {
                         name
                         value
                     }
+                    outgoing
                 }
             }
         }
@@ -37,6 +38,10 @@ export const GameQueries = {
                 incoming
                 stock
                 backlog
+                lastsent
+                pending0
+                outgoingprev
+                outstanding
             }
         }
     `,

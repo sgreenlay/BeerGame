@@ -35,10 +35,19 @@ function Play() {
     return (
         <div>
             <h1>'{this.props.game.id}'</h1>
-            <p>Stock: { data.playerState.stock }</p>
-            <p>Backlog: { data.playerState.backlog }</p>
-            <p>Incoming: { data.playerState.incoming }</p>
-            <p>Outgoing: <form style="display: inline;" onSubmit={e => {
+
+            {this.props.game.playerState.map(state => (
+               <div>{state.player.name} : {state.outgoing == -1 ? "Waiting" : "Submitted"}</div> 
+            ))}
+
+            <div>Stock: { data.playerState.stock }</div>
+            <div>Backlog: { data.playerState.backlog }</div>
+            <div>Incoming: { data.playerState.incoming }</div>
+            <div>Sent: { data.playerState.lastsent }</div>
+            <div>Pending: { data.playerState.pending0 }</div>
+            <div>Outstanding: { data.playerState.outstanding }</div>
+            <div>OutgoingPrev: { data.playerState.outgoingprev.join(',') }</div>
+            <div>Outgoing: <form style="display: inline;" onSubmit={e => {
                 e.preventDefault();
                 setOutgoing({ variables: { outgoing: state.value } });
                 setState({ value: '', valid: false });
@@ -53,7 +62,7 @@ function Play() {
                 }} />
                 <button disabled={!state.valid} type="submit">Set</button>
             </form>
-            </p>
+            </div>
         </div>
     );
 }

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -76,18 +77,27 @@ var GameRoleMappings = []NameValueMapping{
 }
 
 type PlayerState struct {
-	PlayerID string `json:"playerId"`
-	Role     int    `json:"role"`
-	Incoming int    `json:"incoming"`
-	Outgoing int    `json:"outgoing"`
-	Stock    int    `json:"stock"`
-	Backlog  int    `json:"backlog"`
+	PlayerID      string `json:"playerId"`
+	Role          int    `json:"role"`
+	Incoming      int    `json:"incoming"`
+	Outgoing      int    `json:"outgoing"`
+	Outstanding   int    `json:"outstanding"`
+	LastSent      int    `json:"lastsent"`
+	Stock         int    `json:"stock"`
+	Backlog       int    `json:"backlog"`
+	Pending0      int    `json:"pending0"`
+	Pending1      int    `json:"pending1"`
+	Costs         int    `json:"costs"`
+	OutgoingPrev  []int  `json:"outgoingprev"`
+	StockBackPrev []int  `json:"stockbackprev"`
+	CostPrev      []int  `json:"costprev"`
 }
 
 type Game struct {
 	ID          string         `json:"id"`
 	State       int            `json:"state"`
 	PlayerState []*PlayerState `json:"playerState"`
+	Week        int            `json:"week"`
 }
 
 var Games = map[string]*Game{}
@@ -109,6 +119,7 @@ func FindOrCreateGame(id string) *Game {
 			ID:          id,
 			State:       LOBBY,
 			PlayerState: []*PlayerState{},
+			Week:        0,
 		}
 		Games[id] = newGame
 		return newGame
@@ -142,11 +153,19 @@ func (game *Game) AddPlayer(id string) bool {
 		}
 	}
 	newPlayerState := &PlayerState{
-		PlayerID: id,
-		Incoming: -1,
-		Outgoing: -1,
-		Stock:    -1,
-		Backlog:  -1,
+		PlayerID:      id,
+		Incoming:      0,
+		Outgoing:      -1,
+		Outstanding:   0,
+		LastSent:      0,
+		Stock:         15,
+		Backlog:       0,
+		Pending0:      0,
+		Pending1:      0,
+		Costs:         0,
+		OutgoingPrev:  []int{},
+		StockBackPrev: []int{},
+		CostPrev:      []int{},
 	}
 	game.PlayerState = append(game.PlayerState, newPlayerState)
 	return true
@@ -173,7 +192,29 @@ func (game *Game) FindPlayerState(id string) *PlayerState {
 
 func (game *Game) Start() bool {
 	if game.State == LOBBY {
-		// TODO: Validation
+		var p1 *PlayerState = nil
+		var p2 *PlayerState = nil
+		var p3 *PlayerState = nil
+		var p4 *PlayerState = nil
+
+		for _, playerState := range game.PlayerState {
+			if playerState.Role == RETAILER {
+				p1 = playerState
+			}
+			if playerState.Role == WHOLESALER {
+				p2 = playerState
+			}
+			if playerState.Role == DISTRIBUTER {
+				p3 = playerState
+			}
+			if playerState.Role == MANUFACTURER {
+				p4 = playerState
+			}
+		}
+
+		if p1 == nil || p2 == nil || p3 == nil || p4 == nil || len(game.PlayerState) != 4 {
+			return false
+		}
 
 		game.State = PLAYING
 
@@ -183,11 +224,70 @@ func (game *Game) Start() bool {
 }
 
 func (game *Game) TryStep() bool {
-	// TODO: Game logic
+	var p1 *PlayerState = nil
+	var p2 *PlayerState = nil
+	var p3 *PlayerState = nil
+	var p4 *PlayerState = nil
 
 	for _, playerState := range game.PlayerState {
-		playerState.Outgoing = -1
+		if playerState.Outgoing == -1 {
+			return false
+		}
+		if playerState.Role == RETAILER {
+			p1 = playerState
+		}
+		if playerState.Role == WHOLESALER {
+			p2 = playerState
+		}
+		if playerState.Role == DISTRIBUTER {
+			p3 = playerState
+		}
+		if playerState.Role == MANUFACTURER {
+			p4 = playerState
+		}
 	}
+
+	if p1 == nil || p2 == nil || p3 == nil || p4 == nil || len(game.PlayerState) != 4 {
+		return false
+	}
+
+	game.Week = game.Week + 1
+
+	p1.Incoming = rand.Intn(20) // Customers
+	p2.Incoming = p1.Outgoing
+	p3.Incoming = p2.Outgoing
+	p4.Incoming = p3.Outgoing
+
+	for _, p := range game.PlayerState {
+		p.Backlog = p.Backlog + p.Incoming
+		p.Outstanding = p.Outstanding + p.Outgoing - p.Pending0
+		p.Stock = p.Stock + p.Pending0
+		p.Pending0 = p.Pending1
+
+		if p.Stock > p.Backlog {
+			p.LastSent = p.Backlog
+			p.Stock = p.Stock - p.Backlog
+			p.Backlog = 0
+		} else {
+			p.LastSent = p.Stock
+			p.Backlog = p.Backlog - p.Stock
+			p.Stock = 0
+		}
+		p.Costs = p.Costs + p.Stock + p.Backlog*2
+	}
+
+	p1.Pending1 = p2.LastSent
+	p2.Pending1 = p3.LastSent
+	p3.Pending1 = p4.LastSent
+	p4.Pending1 = p4.Outgoing
+
+	for _, p := range game.PlayerState {
+		p.OutgoingPrev = append(p.OutgoingPrev, p.Outgoing)
+		p.StockBackPrev = append(p.StockBackPrev, p.Stock-p.Backlog)
+		p.CostPrev = append(p.CostPrev, p.Costs)
+		p.Outgoing = -1
+	}
+
 	return false
 }
 
@@ -215,8 +315,31 @@ var playerType = graphql.NewObject(graphql.ObjectConfig{
 	},
 })
 
-var playerStateType = graphql.NewObject(graphql.ObjectConfig{
-	Name: "PlayerState",
+var publicPlayerStateType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "PublicPlayerState",
+	Fields: graphql.Fields{
+		"player": &graphql.Field{
+			Type: playerType,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				playerState := p.Source.(*PlayerState)
+				return FindPlayer(playerState.PlayerID), nil
+			},
+		},
+		"outgoing": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"role": &graphql.Field{
+			Type: nameValueType,
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				playerState := p.Source.(*PlayerState)
+				return GameRoleMappings[playerState.Role], nil
+			},
+		},
+	},
+})
+
+var privatePlayerStateType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "PrivatePlayerState",
 	Fields: graphql.Fields{
 		"player": &graphql.Field{
 			Type: playerType,
@@ -233,6 +356,27 @@ var playerStateType = graphql.NewObject(graphql.ObjectConfig{
 		},
 		"backlog": &graphql.Field{
 			Type: graphql.Int,
+		},
+		"lastsent": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"pending0": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"costs": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"outstanding": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"outgoingprev": &graphql.Field{
+			Type: graphql.NewList(graphql.Int),
+		},
+		"stockbackprev": &graphql.Field{
+			Type: graphql.NewList(graphql.Int),
+		},
+		"costprev": &graphql.Field{
+			Type: graphql.NewList(graphql.Int),
 		},
 		"role": &graphql.Field{
 			Type: nameValueType,
@@ -273,7 +417,7 @@ var gameType = graphql.NewObject(
 				},
 			},
 			"playerState": &graphql.Field{
-				Type: graphql.NewList(playerStateType),
+				Type: graphql.NewList(publicPlayerStateType),
 			},
 		},
 	},
@@ -307,7 +451,7 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 			},
 		},
 		"playerState": &graphql.Field{
-			Type: playerStateType,
+			Type: privatePlayerStateType,
 			Args: graphql.FieldConfigArgument{
 				"gameId": &graphql.ArgumentConfig{
 					Type: graphql.NewNonNull(graphql.String),
