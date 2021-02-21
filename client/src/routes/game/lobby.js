@@ -1,42 +1,30 @@
 import { useQuery, useMutation } from '@apollo/react-hooks';
 
-import { GameQueries } from '../../queries/game'
+import { GameQueries } from '../../gql/game'
 
 function Lobby() {
     const { loading, error, data } = useQuery(GameQueries.getRoles);
 
     if (loading) return 'Loading...';
-    if (error) return "Error!";
+    if (error) {
+        console.log(error);
+        return "Error!";
+    }
 
     const [leaveGame] = useMutation(GameQueries.leaveGame, {
         variables: { 
             gameId: this.props.game.id
         },
-        refetchQueries: [{
-            query: GameQueries.getState,
-            variables: { gameId: this.props.game.id }
-        }],
-        awaitRefetchQueries: true,
     });
     const [startGame] = useMutation(GameQueries.startGame, {
         variables: { 
             gameId: this.props.game.id
         },
-        refetchQueries: [{
-            query: GameQueries.getState,
-            variables: { gameId: this.props.game.id }
-        }],
-        awaitRefetchQueries: true,
     });
     const [changeRole] = useMutation(GameQueries.setRole, {
         variables: { 
             gameId: this.props.game.id
         },
-        refetchQueries: [{
-            query: GameQueries.getState,
-            variables: { gameId: this.props.game.id }
-        }],
-        awaitRefetchQueries: true,
     });
 
     return (

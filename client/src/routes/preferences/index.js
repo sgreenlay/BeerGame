@@ -5,7 +5,7 @@ import { useQuery, useMutation } from '@apollo/react-hooks';
 import { existsCookie, setCookie, getCookie } from '../../utils/cookie';
 import { generateUUID } from '../../utils/uuid';
 
-import { PlayerQueries } from '../../queries/player'
+import { PlayerQueries } from '../../gql/player'
 
 function Preferences() {
     const [state, setState] = useState({ 

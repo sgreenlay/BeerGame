@@ -1,14 +1,9 @@
 
 import gql from 'graphql-tag';
 
-export const GameQueries = {
-    getExists: gql`
-        query Game($id: String!) {
-            gameExists(gameId: $id)
-        }
-    `,
-    getState: gql`
-        query Game($gameId: String!) {
+export const GameSubscriptions = {
+    gameState: gql`
+        subscription Game($gameId: String!) {
             game(gameId: $gameId) {
                 id
                 players {
@@ -32,8 +27,8 @@ export const GameQueries = {
             }
         }
     `,
-    getPlayerState: gql`
-        query PlayerState($gameId: String!, $playerId: String!) {
+    playerState: gql`
+        subscription PlayerState($gameId: String!, $playerId: String!) {
             playerState(gameId: $gameId, playerId: $playerId) {
                 incoming
                 stock
@@ -43,6 +38,14 @@ export const GameQueries = {
                 outgoingprev
                 outstanding
             }
+        }
+    `,
+}
+
+export const GameQueries = {
+    getExists: gql`
+        query Game($id: String!) {
+            gameExists(gameId: $id)
         }
     `,
     getRoles: gql`

@@ -1,20 +1,23 @@
 import { useState } from 'preact/hooks';
 
-import { useQuery, useMutation } from '@apollo/react-hooks';
+import { useQuery, useMutation, useSubscription } from '@apollo/react-hooks';
 
-import { GameQueries } from '../../queries/game'
+import { GameQueries, GameSubscriptions } from '../../gql/game'
 
 function Play() {
-    const { loading, error, data } = useQuery(GameQueries.getPlayerState, {
+    const { loading, error, data } = useSubscription(GameSubscriptions.playerState, {
         variables: { 
             gameId: this.props.game.id, 
             playerId: this.props.user.id 
         },
-        pollInterval: 1000,
+        shouldResubscribe: true
     });
 
     if (loading) return 'Loading...';
-    if (error) return "Error!";
+    if (error) {
+        console.log(error);
+        return "Error!";
+    }
     
     const [state, setState] = useState({ 
         value: '',
@@ -25,11 +28,6 @@ function Play() {
             gameId: this.props.game.id,
             playerId: this.props.user.id
         },
-        refetchQueries: [{
-            query: GameQueries.getState,
-            variables: { gameId: this.props.game.id, }
-        }],
-        awaitRefetchQueries: true,
     });
 
     return (
@@ -47,21 +45,23 @@ function Play() {
             <div>Pending: { data.playerState.pending0 }</div>
             <div>Outstanding: { data.playerState.outstanding }</div>
             <div>OutgoingPrev: { data.playerState.outgoingprev.join(',') }</div>
-            <div>Outgoing: <form style="display: inline;" onSubmit={e => {
-                e.preventDefault();
-                setOutgoing({ variables: { outgoing: state.value } });
-                setState({ value: '', valid: false });
-            }}>
-                <input type="text" value={state.value} style={state.valid ? "border: 1px solid black" : "border: 1px solid red"} onInput={e => {
-                    const { value } = e.target;
+            <div>
+                Outgoing:
+                <form style="display: inline;" onSubmit={e => {
+                    e.preventDefault();
+                    setOutgoing({ variables: { outgoing: state.value } });
+                    setState({ value: '', valid: false });
+                }}>
+                    <input type="text" value={state.value} style={state.valid ? "border: 1px solid black" : "border: 1px solid red"} onInput={e => {
+                        const { value } = e.target;
 
-                    const intValue = Number(value)
-                    var isValid = (intValue != NaN && intValue >= 0 && intValue < 2147483647);
+                        const intValue = Number(value)
+                        var isValid = (intValue != NaN && intValue >= 0 && intValue < 2147483647);
 
-                    setState({ value: value, valid: isValid });
-                }} />
-                <button disabled={!state.valid} type="submit">Set</button>
-            </form>
+                        setState({ value: value, valid: isValid });
+                    }} />
+                    <button disabled={!state.valid} type="submit">Set</button>
+                </form>
             </div>
         </div>
     );

@@ -1,9 +1,9 @@
 import { useState } from 'preact/hooks';
 
 import gql from 'graphql-tag';
-import { useQuery } from '@apollo/react-hooks';
+import { useQuery, useSubscription } from '@apollo/react-hooks';
 
-import { GameQueries } from '../../queries/game'
+import { GameQueries } from '../../gql/game'
 
 function Home() {
     const [state, setState] = useState({ id: '' });
@@ -11,7 +11,10 @@ function Home() {
         variables: { id: state.id }
     });
 
-    if (error) return `Error! ${error.message}`;
+    if (error) {
+        console.log(error);
+        return "Error!";
+    }
 
     return (
         <div>

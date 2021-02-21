@@ -1,31 +1,28 @@
 import { useEffect } from 'preact/hooks';
 
-import { useQuery, useMutation } from '@apollo/react-hooks';
+import { useQuery, useMutation, useSubscription } from '@apollo/react-hooks';
 
 import Lobby from "./lobby"
 import Play from "./play"
 
-import { GameQueries } from '../../queries/game'
+import { GameQueries, GameSubscriptions } from '../../gql/game'
 
 function Game({ id }) {
-    const { loading, error, data } = useQuery(GameQueries.getState, {
+    const { loading, error, data } = useSubscription(GameSubscriptions.gameState, {
         variables: { gameId: id },
-        skip: !id,
-        pollInterval: 1000,
+        shouldResubscribe: true
     });
     const [joinGame] = useMutation(GameQueries.joinGame, {
         variables: { 
             gameId: id
-        },
-        refetchQueries: [{
-            query: GameQueries.getState,
-            variables: { gameId: id }
-        }],
-        awaitRefetchQueries: true,
+        }
     });
 
     if (loading) return 'Loading...';
-    if (error) return "Error!";
+    if (error) {
+        console.log(error);
+        return "Error!";
+    }
 
     useEffect(() => {
         joinGame({ variables: { playerId: this.props.user.id }});

@@ -6,6 +6,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
+
+	"golang.org/x/net/websocket"
 
 	"github.com/graphql-go/graphql"
 	"github.com/graphql-go/handler"
@@ -542,6 +545,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 					return false, nil
 				}
 				added := game.AddPlayer(playerId)
+				Subscriptions.broadcast()
 				return added, nil
 			},
 		},
@@ -560,6 +564,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				game := FindOrCreateGame(gameId)
 				playerId, _ := p.Args["playerId"].(string)
 				removed := game.RemovePlayer(playerId)
+				Subscriptions.broadcast()
 				return removed, nil
 			},
 		},
@@ -591,7 +596,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 
 				role, _ := p.Args["role"].(int)
 				playerState.Role = role
-
+				Subscriptions.broadcast()
 				return true, nil
 			},
 		},
@@ -605,7 +610,9 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 				gameId, _ := p.Args["gameId"].(string)
 				game := FindOrCreateGame(gameId)
-				return game.Start(), nil
+				started := game.Start()
+				Subscriptions.broadcast()
+				return started, nil
 			},
 		},
 		"submitOutgoing": &graphql.Field{
@@ -641,8 +648,53 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 
 				playerState.Outgoing = outgoing
 				game.TryStep()
-
+				Subscriptions.broadcast()
 				return true, nil
+			},
+		},
+	},
+})
+
+var subscriptionType = graphql.NewObject(graphql.ObjectConfig{
+	Name: "Subscription",
+	Fields: graphql.Fields{
+		"game": &graphql.Field{
+			Type: gameType,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				id, _ := p.Args["gameId"].(string)
+				return FindOrCreateGame(id), nil
+			},
+		},
+		"playerState": &graphql.Field{
+			Type: privatePlayerStateType,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"playerId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				id, _ := p.Args["gameId"].(string)
+
+				game := FindGame(id)
+				if game == nil {
+					return nil, nil
+				}
+
+				playerId, _ := p.Args["playerId"].(string)
+				playerState := game.FindPlayerState(playerId)
+				if playerState == nil {
+					return nil, nil
+				}
+
+				return playerState, nil
 			},
 		},
 	},
@@ -672,6 +724,110 @@ func (h SinglePageAppHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	http.FileServer(http.Dir(h.Directory)).ServeHTTP(w, r)
 }
 
+type Subscriber struct {
+	ID            int
+	Conn          *websocket.Conn
+	RequestString string
+	Variables 	  map[string]interface{}
+	OperationID   string
+}
+
+type SubscriptionHandler struct {
+	Schema	*graphql.Schema
+	NextID	int
+	Subscribers	[]Subscriber
+}
+var Subscriptions SubscriptionHandler
+
+type SubscriptionMessage struct {
+	OperationID string `json:"id,omitempty"`
+	Type        string `json:"type"`
+	Payload     struct {
+		Query 		string `json:"query"`
+		Variables 	map[string]interface{} `json:"variables"`
+	} `json:"payload,omitempty"`
+}
+
+func (h *SubscriptionHandler) uniqueId() int {
+	id := h.NextID
+	h.NextID += 1
+	return id
+}
+
+func (h *SubscriptionHandler) handler(ws *websocket.Conn) {
+	for {
+		var msg SubscriptionMessage
+		if err := websocket.JSON.Receive(ws, &msg); err != nil {
+			break
+		}
+
+		switch msg.Type {
+			case "connection_init":
+			case "start":
+				subscriber := Subscriber{
+					ID:            h.uniqueId(),
+					Conn:          ws,
+					RequestString: 	msg.Payload.Query,
+					Variables: msg.Payload.Variables,
+					OperationID:   msg.OperationID,
+				}
+				h.Subscribers = append(h.Subscribers, subscriber)
+				go h.initilizeSubscriber(&subscriber)
+			case "stop":
+			default:
+				println("Unknown message:", msg.Type)
+		}
+	}
+}
+
+func (h *SubscriptionHandler) removeSubscriber(id int) {
+	for index, subscriber := range h.Subscribers {
+		if subscriber.ID == id {
+			h.Subscribers = append(h.Subscribers[:index], h.Subscribers[index+1:]...)
+			return
+		}
+	}
+}
+
+func (subscriber *Subscriber) broadcast(schema *graphql.Schema) bool {
+	payload := graphql.Do(graphql.Params{
+		Schema: *schema,
+		RequestString: subscriber.RequestString,
+		VariableValues: subscriber.Variables,
+	})
+	msg := map[string]interface{}{
+		"type":    "data",
+		"id":      subscriber.OperationID,
+		"payload": payload,
+	}
+	if err := websocket.JSON.Send(subscriber.Conn, msg); err != nil {
+		return false
+	}
+	return true
+}
+
+func (h *SubscriptionHandler) initilizeSubscriber(subscriber *Subscriber) {
+	time.Sleep(100 * time.Millisecond)
+	succeeded := subscriber.broadcast(h.Schema)
+	if !succeeded {
+		h.removeSubscriber(subscriber.ID)
+	}
+}
+
+func (h *SubscriptionHandler) broadcast() {
+	invalidSubscriptions := []int{}
+	for _, subscriber := range h.Subscribers {
+		succeeded := subscriber.broadcast(h.Schema)
+		if !succeeded {
+			invalidSubscriptions = append(invalidSubscriptions, subscriber.ID)
+		}
+	}
+
+	for _, id := range invalidSubscriptions {
+		h.removeSubscriber(id)
+	}
+}
+
 func main() {
 	mux := http.NewServeMux()
 
@@ -684,6 +840,7 @@ func main() {
 	schema, _ := graphql.NewSchema(graphql.SchemaConfig{
 		Query:    queryType,
 		Mutation: mutationType,
+		Subscription: subscriptionType,
 	})
 
 	graphqlHandler := handler.New(&handler.Config{
@@ -693,6 +850,11 @@ func main() {
 	})
 	mux.Handle("/graphql", graphqlHandler)
 	mux.Handle("/graphql/", graphqlHandler)
+
+	Subscriptions = SubscriptionHandler{
+		Schema:   &schema,
+	}
+	mux.Handle("/wsgraphql", websocket.Handler(Subscriptions.handler))
 
 	handler := cors.Default().Handler(mux)
 	http.ListenAndServe("0.0.0.0:80", handler)
