@@ -13,3 +13,138 @@ html, body {
 #app {
     height: 100%;
 }
+
+.valid {
+    outline: none;
+    border: none;
+}
+.valid:focus {
+    border-bottom: inherit;
+}
+.valid:active {
+    border-bottom: inherit;
+}
+
+.invalid {
+    outline: none;
+    border: none;
+    background: rgba(255, 0, 0, 0.1);
+}
+.invalid:focus {
+    border-bottom: inherit;
+}
+.invalid:active {
+    border-bottom: inherit;
+}
+
+.player-state {
+    position: relative;
+    display: flex;
+    width: 26em;
+}
+.player-state .block {
+    display: flex;
+    flex-direction: column;
+    width: 8em;
+    height: 3em;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+.player-state .waiting {
+    background: rgba(255, 0, 0, 0.1);
+}
+.player-state .done {
+    background: rgba(0, 255, 0, 0.1);
+}
+.player-state .role {
+    font-size: 0.8em;
+    font-variant:small-caps;
+}
+
+.game-state {
+    position: relative;
+    display: inline-block;
+    width: 26em;
+    height: 18em;
+}
+.game-state .block {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    width: 6em;
+    height: 4em;
+    border: 0.1em solid black;
+}
+.game-state .indicator {
+    display: flex;
+    flex-direction: column;
+    position: absolute;
+    width: 2em;
+    height: 2em;
+    align-items:center;
+    justify-content:center;
+}
+.game-state .block .title {
+    display: flex;
+    width: 100%;
+    background: black;
+    color: white;
+    align-items:center;
+    justify-content:center;
+    padding-top: 0.14em;
+    padding-bottom: 0.14em;
+    font-size: 0.8em;
+    font-variant:small-caps;
+}
+.game-state .block .value {
+    display: flex;
+    width: 100%;
+    margin-top: 0.2em;
+    align-items:center;
+    justify-content:center;
+    font-size: 2em;
+    font-family: monospace;
+}
+.game-state .incoming {
+    top: 1em;
+    left: 1em;
+}
+.game-state .outgoing {
+    top: 7em;
+    left: 1em;
+}
+.game-state .outgoing .input {
+    width: 90%;
+    text-align: center;
+    font-size: 1em;
+    font-family: monospace;
+}
+.game-state .backlog {
+    top: 1em;
+    left: 9em;
+}
+.game-state .stock {
+    top: 7em;
+    left: 9em;
+}
+.game-state .last-sent-indicator {
+    top: 2em;
+    left: 16em;
+}
+.game-state .last-sent {
+    top: 1em;
+    left: 19em;
+}
+.game-state .pending-next {
+    top: 7em;
+    left: 19em;
+}
+.game-state .pending-next-indicator {
+    top: 8em;
+    left: 16em;
+}
+.game-state .pending-all {
+    top: 13em;
+    left: 19em;
+}

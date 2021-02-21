@@ -31,6 +31,7 @@ export const GameSubscriptions = {
         subscription PlayerState($gameId: String!, $playerId: String!) {
             playerState(gameId: $gameId, playerId: $playerId) {
                 incoming
+                outgoing
                 stock
                 backlog
                 lastsent

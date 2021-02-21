@@ -97,11 +97,11 @@ type PlayerState struct {
 }
 
 type Game struct {
-	ID          string         	`json:"id"`
-	State       int            	`json:"state"`
-	PlayerState []*PlayerState 	`json:"playerState"`
-	Week        int            	`json:"week"`
-	LastWeek    int        		`json:"lastweek"`
+	ID          string         `json:"id"`
+	State       int            `json:"state"`
+	PlayerState []*PlayerState `json:"playerState"`
+	Week        int            `json:"week"`
+	LastWeek    int            `json:"lastweek"`
 }
 
 var Games = map[string]*Game{}
@@ -124,7 +124,7 @@ func FindOrCreateGame(id string) *Game {
 			State:       LOBBY,
 			PlayerState: []*PlayerState{},
 			Week:        0,
-			LastWeek:	 50,
+			LastWeek:    50,
 		}
 		Games[id] = newGame
 		return newGame
@@ -298,7 +298,7 @@ func (game *Game) TryStep() bool {
 		p.Outgoing = -1
 	}
 
-	if game.Week >= game.LastWeek - 1 {
+	if game.Week >= game.LastWeek-1 {
 		game.State = FINISHED
 	} else {
 		game.Week = game.Week + 1
@@ -365,6 +365,9 @@ var privatePlayerStateType = graphql.NewObject(graphql.ObjectConfig{
 			},
 		},
 		"incoming": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"outgoing": &graphql.Field{
 			Type: graphql.Int,
 		},
 		"stock": &graphql.Field{
@@ -772,23 +775,24 @@ type Subscriber struct {
 	ID            int
 	Conn          *websocket.Conn
 	RequestString string
-	Variables 	  map[string]interface{}
+	Variables     map[string]interface{}
 	OperationID   string
 }
 
 type SubscriptionHandler struct {
-	Schema	*graphql.Schema
-	NextID	int
-	Subscribers	[]Subscriber
+	Schema      *graphql.Schema
+	NextID      int
+	Subscribers []Subscriber
 }
+
 var Subscriptions SubscriptionHandler
 
 type SubscriptionMessage struct {
 	OperationID string `json:"id,omitempty"`
 	Type        string `json:"type"`
 	Payload     struct {
-		Query 		string `json:"query"`
-		Variables 	map[string]interface{} `json:"variables"`
+		Query     string                 `json:"query"`
+		Variables map[string]interface{} `json:"variables"`
 	} `json:"payload,omitempty"`
 }
 
@@ -806,20 +810,20 @@ func (h *SubscriptionHandler) handler(ws *websocket.Conn) {
 		}
 
 		switch msg.Type {
-			case "connection_init":
-			case "start":
-				subscriber := Subscriber{
-					ID:            h.uniqueId(),
-					Conn:          ws,
-					RequestString: 	msg.Payload.Query,
-					Variables: msg.Payload.Variables,
-					OperationID:   msg.OperationID,
-				}
-				h.Subscribers = append(h.Subscribers, subscriber)
-				go h.initilizeSubscriber(&subscriber)
-			case "stop":
-			default:
-				println("Unknown message:", msg.Type)
+		case "connection_init":
+		case "start":
+			subscriber := Subscriber{
+				ID:            h.uniqueId(),
+				Conn:          ws,
+				RequestString: msg.Payload.Query,
+				Variables:     msg.Payload.Variables,
+				OperationID:   msg.OperationID,
+			}
+			h.Subscribers = append(h.Subscribers, subscriber)
+			go h.initilizeSubscriber(&subscriber)
+		case "stop":
+		default:
+			println("Unknown message:", msg.Type)
 		}
 	}
 }
@@ -835,8 +839,8 @@ func (h *SubscriptionHandler) removeSubscriber(id int) {
 
 func (subscriber *Subscriber) broadcast(schema *graphql.Schema) bool {
 	payload := graphql.Do(graphql.Params{
-		Schema: *schema,
-		RequestString: subscriber.RequestString,
+		Schema:         *schema,
+		RequestString:  subscriber.RequestString,
 		VariableValues: subscriber.Variables,
 	})
 	msg := map[string]interface{}{
@@ -882,8 +886,8 @@ func main() {
 	mux.Handle("/", appHandler)
 
 	schema, _ := graphql.NewSchema(graphql.SchemaConfig{
-		Query:    queryType,
-		Mutation: mutationType,
+		Query:        queryType,
+		Mutation:     mutationType,
 		Subscription: subscriptionType,
 	})
 
@@ -896,7 +900,7 @@ func main() {
 	mux.Handle("/graphql/", graphqlHandler)
 
 	Subscriptions = SubscriptionHandler{
-		Schema:   &schema,
+		Schema: &schema,
 	}
 	mux.Handle("/wsgraphql", websocket.Handler(Subscriptions.handler))
 
