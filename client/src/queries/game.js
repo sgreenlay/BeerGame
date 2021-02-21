@@ -31,6 +31,15 @@ export const GameQueries = {
             }
         }
     `,
+    getPlayerState: gql`
+        query PlayerState($gameId: String!, $playerId: String!) {
+            playerState(gameId: $gameId, playerId: $playerId) {
+                incoming
+                stock
+                backlog
+            }
+        }
+    `,
     getRoles: gql`
         query Roles {
             gameRoles {
@@ -59,9 +68,9 @@ export const GameQueries = {
             changePlayerRole(gameId: $gameId, playerId: $playerId, role: $role)
         }
     `,
-    submitValue: gql`
-        mutation ChangePlayerRole($gameId: String!, $playerId: String!, $value: Int!) {
-            submitValue(gameId: $gameId, playerId: $playerId, value: $value)
+    submitOutgoing: gql`
+        mutation SubmitOutgoing($gameId: String!, $playerId: String!, $outgoing: Int!) {
+            submitOutgoing(gameId: $gameId, playerId: $playerId, outgoing: $outgoing)
         }
     `,
 };

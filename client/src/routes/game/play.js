@@ -5,11 +5,22 @@ import { useQuery, useMutation } from '@apollo/react-hooks';
 import { GameQueries } from '../../queries/game'
 
 function Play() {
+    const { loading, error, data } = useQuery(GameQueries.getPlayerState, {
+        variables: { 
+            gameId: this.props.game.id, 
+            playerId: this.props.user.id 
+        },
+        pollInterval: 1000,
+    });
+
+    if (loading) return 'Loading...';
+    if (error) return "Error!";
+    
     const [state, setState] = useState({ 
         value: '',
         valid: false
     });
-    const [setValue] = useMutation(GameQueries.submitValue, {
+    const [setOutgoing] = useMutation(GameQueries.submitOutgoing, {
         variables: { 
             gameId: this.props.game.id,
             playerId: this.props.user.id
@@ -24,9 +35,12 @@ function Play() {
     return (
         <div>
             <h1>'{this.props.game.id}'</h1>
-            <form onSubmit={e => {
+            <p>Stock: { data.playerState.stock }</p>
+            <p>Backlog: { data.playerState.backlog }</p>
+            <p>Incoming: { data.playerState.incoming }</p>
+            <p>Outgoing: <form style="display: inline;" onSubmit={e => {
                 e.preventDefault();
-                setValue({ variables: { value: state.value } });
+                setOutgoing({ variables: { outgoing: state.value } });
                 setState({ value: '', valid: false });
             }}>
                 <input type="text" value={state.value} style={state.valid ? "border: 1px solid black" : "border: 1px solid red"} onInput={e => {
@@ -39,6 +53,7 @@ function Play() {
                 }} />
                 <button disabled={!state.valid} type="submit">Set</button>
             </form>
+            </p>
         </div>
     );
 }

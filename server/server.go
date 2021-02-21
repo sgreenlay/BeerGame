@@ -77,8 +77,11 @@ var GameRoleMappings = []NameValueMapping{
 
 type PlayerState struct {
 	PlayerID string `json:"playerId"`
-	Value    int    `json:"value"`
 	Role     int    `json:"role"`
+	Incoming int    `json:"incoming"`
+	Outgoing int    `json:"outgoing"`
+	Stock    int    `json:"stock"`
+	Backlog  int    `json:"backlog"`
 }
 
 type Game struct {
@@ -140,15 +143,18 @@ func (game *Game) AddPlayer(id string) bool {
 	}
 	newPlayerState := &PlayerState{
 		PlayerID: id,
-		Value:    0,
+		Incoming: -1,
+		Outgoing: -1,
+		Stock:    -1,
+		Backlog:  -1,
 	}
 	game.PlayerState = append(game.PlayerState, newPlayerState)
 	return true
 }
 
 func (game *Game) RemovePlayer(id string) bool {
-	for index, value := range game.PlayerState {
-		if value.PlayerID == id {
+	for index, playerState := range game.PlayerState {
+		if playerState.PlayerID == id {
 			game.PlayerState = append(game.PlayerState[:index], game.PlayerState[index+1:]...)
 			return true
 		}
@@ -157,9 +163,9 @@ func (game *Game) RemovePlayer(id string) bool {
 }
 
 func (game *Game) FindPlayerState(id string) *PlayerState {
-	for _, value := range game.PlayerState {
-		if value.PlayerID == id {
-			return value
+	for _, playerState := range game.PlayerState {
+		if playerState.PlayerID == id {
+			return playerState
 		}
 	}
 	return nil
@@ -170,13 +176,18 @@ func (game *Game) Start() bool {
 		// TODO: Validation
 
 		game.State = PLAYING
+
 		return true
 	}
 	return false
 }
 
 func (game *Game) TryStep() bool {
-	// TODO
+	// TODO: Game logic
+
+	for _, playerState := range game.PlayerState {
+		playerState.Outgoing = -1
+	}
 	return false
 }
 
@@ -214,7 +225,13 @@ var playerStateType = graphql.NewObject(graphql.ObjectConfig{
 				return FindPlayer(playerState.PlayerID), nil
 			},
 		},
-		"value": &graphql.Field{
+		"incoming": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"stock": &graphql.Field{
+			Type: graphql.Int,
+		},
+		"backlog": &graphql.Field{
 			Type: graphql.Int,
 		},
 		"role": &graphql.Field{
@@ -287,6 +304,33 @@ var queryType = graphql.NewObject(graphql.ObjectConfig{
 			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
 				id, _ := p.Args["gameId"].(string)
 				return FindOrCreateGame(id), nil
+			},
+		},
+		"playerState": &graphql.Field{
+			Type: playerStateType,
+			Args: graphql.FieldConfigArgument{
+				"gameId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+				"playerId": &graphql.ArgumentConfig{
+					Type: graphql.NewNonNull(graphql.String),
+				},
+			},
+			Resolve: func(p graphql.ResolveParams) (interface{}, error) {
+				id, _ := p.Args["gameId"].(string)
+
+				game := FindGame(id)
+				if game == nil {
+					return nil, nil
+				}
+
+				playerId, _ := p.Args["playerId"].(string)
+				playerState := game.FindPlayerState(playerId)
+				if playerState == nil {
+					return nil, nil
+				}
+
+				return playerState, nil
 			},
 		},
 		"player": &graphql.Field{
@@ -420,7 +464,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				return game.Start(), nil
 			},
 		},
-		"submitValue": &graphql.Field{
+		"submitOutgoing": &graphql.Field{
 			Type: graphql.Boolean,
 			Args: graphql.FieldConfigArgument{
 				"gameId": &graphql.ArgumentConfig{
@@ -429,7 +473,7 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 				"playerId": &graphql.ArgumentConfig{
 					Type: graphql.NewNonNull(graphql.String),
 				},
-				"value": &graphql.ArgumentConfig{
+				"outgoing": &graphql.ArgumentConfig{
 					Type: graphql.NewNonNull(graphql.Int),
 				},
 			},
@@ -446,13 +490,12 @@ var mutationType = graphql.NewObject(graphql.ObjectConfig{
 					return false, nil
 				}
 
-				value, validValue := p.Args["value"].(int)
-				if !validValue {
+				outgoing, validOutgoing := p.Args["outgoing"].(int)
+				if !validOutgoing {
 					return false, nil
 				}
 
-				// TODO: Something with the value
-				println(value)
+				playerState.Outgoing = outgoing
 				game.TryStep()
 
 				return true, nil
