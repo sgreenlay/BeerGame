@@ -3,6 +3,7 @@ import { useState } from 'preact/hooks';
 import { useQuery, useMutation, useSubscription } from '@apollo/react-hooks';
 
 import { GameQueries, GameSubscriptions } from '../../gql/game'
+import Graph from '../../components/graph'
 
 function Play() {
     const { loading, error, data } = useSubscription(GameSubscriptions.playerState, {
@@ -33,6 +34,8 @@ function Play() {
     return (
         <div>
             <h1>'{this.props.game.id}'</h1>
+
+            <Graph data={data.playerState.outgoingprev} />
 
             <div class="player-state">
                 {this.props.game.playerState.sort(function(a, b) {
