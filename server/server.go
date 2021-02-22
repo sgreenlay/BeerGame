@@ -897,7 +897,6 @@ func main() {
 		GraphiQL: true,
 	})
 	mux.Handle("/graphql", graphqlHandler)
-	mux.Handle("/graphql/", graphqlHandler)
 
 	Subscriptions = SubscriptionHandler{
 		Schema: &schema,
