@@ -34,15 +34,15 @@ const (
 )
 
 var GameStateMappings = []NameValueMapping{
-	NameValueMapping{
+	{
 		Name:  "lobby",
 		Value: LOBBY,
 	},
-	NameValueMapping{
+	{
 		Name:  "playing",
 		Value: PLAYING,
 	},
-	NameValueMapping{
+	{
 		Name:  "finished",
 		Value: FINISHED,
 	},
@@ -57,23 +57,23 @@ const (
 )
 
 var GameRoleMappings = []NameValueMapping{
-	NameValueMapping{
+	{
 		Name:  "none",
 		Value: NONE,
 	},
-	NameValueMapping{
+	{
 		Name:  "retailer",
 		Value: RETAILER,
 	},
-	NameValueMapping{
+	{
 		Name:  "wholesaler",
 		Value: WHOLESALER,
 	},
-	NameValueMapping{
+	{
 		Name:  "distributer",
 		Value: DISTRIBUTER,
 	},
-	NameValueMapping{
+	{
 		Name:  "manufacturer",
 		Value: MANUFACTURER,
 	},
@@ -897,7 +897,6 @@ func main() {
 		GraphiQL: true,
 	})
 	mux.Handle("/graphql", graphqlHandler)
-	mux.Handle("/graphql/", graphqlHandler)
 
 	Subscriptions = SubscriptionHandler{
 		Schema: &schema,

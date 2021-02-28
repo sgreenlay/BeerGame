@@ -20,10 +20,10 @@ import Perferences from '../routes/preferences';
 import { PlayerQueries } from '../gql/player'
 
 const httpLink = new HttpLink({
-    uri: `${(location.protocol == 'https:') ? "https" : "http"}://${window.location.hostname}/graphql`,
+    uri: `${(location.protocol == 'https:') ? "https" : "http"}://${window.location.host}/graphql`,
 });
 const wsLink = new WebSocketLink({
-    uri: `${(location.protocol == 'https:') ? "wss" : "ws"}://${window.location.hostname}/wsgraphql`,
+    uri: `${(location.protocol == 'https:') ? "wss" : "ws"}://${window.location.host}/wsgraphql`,
     options: {
         reconnect: true
     }
